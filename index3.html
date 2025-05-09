@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa con distancia entre puntos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+  <style>
+    #map { height: 500px; width: 100%; margin-bottom: 10px; }
+    button { margin: 5px; padding: 8px; font-size: 14px; }
+    .info { margin: 5px; font-family: Arial; }
+  </style>
+</head>
+<body>
+
+  <h3>Selecciona Origen y Destino</h3>
+  <div id="map"></div>
+  <div>
+    <button id="selectOriginBtn">Seleccionar Origen</button>
+    <button id="selectDestBtn">Seleccionar Destino</button>
+    <button id="calcDistBtn">Calcular Distancia</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+  <div class="info">
+    <p><strong>Origen:</strong> <span id="originText">No seleccionado</span></p>
+    <p><strong>Destino:</strong> <span id="destText">No seleccionado</span></p>
+    <p><strong>Distancia:</strong> <span id="distanceText">-</span></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([-12.0464, -77.0428], 13); // Lima
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let mode = null; // 'origin' or 'dest'
+    let originMarker = null;
+    let destMarker = null;
+
+    document.getElementById('selectOriginBtn').onclick = () => { mode = 'origin'; };
+    document.getElementById('selectDestBtn').onclick = () => { mode = 'dest'; };
+
+    document.getElementById('resetBtn').onclick = () => {
+      if (originMarker) map.removeLayer(originMarker);
+      if (destMarker) map.removeLayer(destMarker);
+      originMarker = destMarker = null;
+      document.getElementById('originText').textContent = 'No seleccionado';
+      document.getElementById('destText').textContent = 'No seleccionado';
+      document.getElementById('distanceText').textContent = '-';
+      mode = null;
+    };
+
+    document.getElementById('calcDistBtn').onclick = () => {
+      if (originMarker && destMarker) {
+        const o = originMarker.getLatLng();
+        const d = destMarker.getLatLng();
+        const distKm = haversineDistance([o.lat, o.lng], [d.lat, d.lng]).toFixed(2);
+        document.getElementById('distanceText').textContent = `${distKm} km`;
+      } else {
+        alert("Debes seleccionar ambos puntos primero.");
+      }
+    };
+
+    map.on('click', function(e) {
+      const { lat, lng } = e.latlng;
+
+      if (mode === 'origin') {
+        if (originMarker) map.removeLayer(originMarker);
+        originMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        document.getElementById('originText').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        originMarker.on('dragend', function(e) {
+          const pos = e.target.getLatLng();
+          document.getElementById('originText').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+        });
+        mode = null;
+      }
+
+      if (mode === 'dest') {
+        if (destMarker) map.removeLayer(destMarker);
+        destMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        document.getElementById('destText').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        destMarker.on('dragend', function(e) {
+          const pos = e.target.getLatLng();
+          document.getElementById('destText').textContent = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+        });
+        mode = null;
+      }
+    });
+
+    // Función para calcular distancia haversine (línea recta)
+    function haversineDistance(coords1, coords2) {
+      function toRad(x) { return x * Math.PI / 180; }
+
+      const R = 6371; // km
+      const dLat = toRad(coords2[0] - coords1[0]);
+      const dLon = toRad(coords2[1] - coords1[1]);
+      const lat1 = toRad(coords1[0]);
+      const lat2 = toRad(coords2[0]);
+
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+  </script>
+
+</body>
+</html>
